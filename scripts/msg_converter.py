@@ -5,6 +5,7 @@ Created on 04/12/14
 
 @author: Sam Pfeiffer
 
+Transform AudioBuffer Naoqi messages to AudioData audio_common messages.
 
 """
 import rospy
@@ -18,19 +19,17 @@ NAOQI_AUDIO_TOPIC = '/naoqi_microphone/audio_raw'
 class converterNaoqiAudioToAudioCommon():
     def __init__(self):
         rospy.loginfo("Setting up pub and sub")
-        self.pub =rospy.Publisher(AUDIO_COMMON_TOPIC, AudioData)
+        self.pub = rospy.Publisher(AUDIO_COMMON_TOPIC, AudioData)
         self.sub = rospy.Subscriber(NAOQI_AUDIO_TOPIC, AudioBuffer, self.audio_cb)
         rospy.loginfo("Done!")
 
-        
     def audio_cb(self, data):
+        #: :type data: AudioBuffer
         #ab = AudioBuffer()
-        # int16[] data
-        print "."
+        # This contains (in the 'data' field): int16[] data
+        rospy.loginfo("Callback received!")
         ad = AudioData()
-        # uint8[] data
-#         for item in data.data:
-#             ad.data.append(item)
+        # This is: uint8[] data
         data_uint8 = numpy.array(data.data, dtype=numpy.uint8)
         ad.data = data_uint8.tolist()
         self.pub.publish(ad)
@@ -38,5 +37,5 @@ class converterNaoqiAudioToAudioCommon():
 if __name__=="__main__":
     rospy.init_node('convert_audios_msgs_')
     
-    c = converterNaoqiAudioToAudioCommon()
+    CNATAC = converterNaoqiAudioToAudioCommon()
     rospy.spin()
