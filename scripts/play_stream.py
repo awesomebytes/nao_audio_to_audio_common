@@ -9,32 +9,21 @@ Play stream of topic of Naoqi audio
 
 """
 import rospy
-import ossaudiodev
+# sudo apt-get install python-alsaaudio
+import alsaaudio
 from naoqi_msgs.msg import AudioBuffer
 
 NAOQI_AUDIO_TOPIC = '/naoqi_microphone/audio_raw'
 
 class PlayNaoqiAudioTopic():
     def __init__(self):
-        # To get rid of:
-        # self.device = ossaudiodev.open('w')
-        # IOError: [Errno 2] No such file or directory: '/dev/dsp'
-        # I tried installing: sudo apt-get install alsa-oss
-        # and executing:
-        # aoss python play_stream.py
-        # but it didn't work
-        # Then I tried:
-        #  padsp ./play_stream.py
-        # and it did kind of work
-        self.device = ossaudiodev.open('w')
-        #format = ossaudiodev.AFMT_S16_LE
-        #self.device.setfmt(ossaudiodev.AFMT_S16_LE) # format corresponding to the buffers in the bag => if you use nao_sensors node, 
+        rospy.loginfo("Getting audio card...")
+        self.device = alsaaudio.PCM()
+        self.device.setformat(alsaaudio.PCM_FORMAT_S16_LE) # format corresponding to the buffers in the bag => if you use nao_sensors node, 
         self.device_configured = False
-        # Let's assume msg is a ros AudioBuffer message
-
-        
-        # the setting (format, channels, rate) can be done only once
-        rospy.loginfo("Setting up sub")
+        rospy.loginfo("Done!")
+        # the setting (format, channels, rate) can be done only once (and should only most probably)
+        rospy.loginfo("Setting up subscriber to " + NAOQI_AUDIO_TOPIC)
         self.sub = rospy.Subscriber(NAOQI_AUDIO_TOPIC, AudioBuffer, self.audio_cb)
         rospy.loginfo("Done!")
         
@@ -42,11 +31,19 @@ class PlayNaoqiAudioTopic():
     def audio_cb(self, msg):
         rospy.loginfo("Callback received!")
         if not self.device_configured:
-            #self.device.channels(len(msg.channelMap))
-            #self.device.speed(msg.frequency)
+            self.device.setchannels(len(msg.channelMap))
+            self.device.setrate(msg.frequency)
             self.device_configured = True
-            
         tmp = list(msg.data)
+        # Empirically I've seen that every msg has a data field with 10920 items
+        # every item is a sample from each channel
+        # in my bag there are 4 channels:
+        # frequency: 16000
+        # channelMap: [0, 2, 1, 4]
+        # [CHANNEL_FRONT_LEFT, CHANNEL_FRONT_RIGHT, CHANNEL_FRONT_CENTER, CHANNEL_REAR_CENTER]
+        # This means that 10920 / 4 = 2730 samples for each channel
+        # which 16000 / 2730 = 5, so we have 1/5 of a second in every message
+        # We could make a little buffer to have better audio? (right now it stops all the time)
         dataBuff = ""
         
         for i in range (0,len(tmp)) :
